@@ -9,15 +9,15 @@ models:
         tests:
           - not_null
           - unique
-      - name: total_purchases
-        description: "Total number of purchases made by the customer"
+      - name: total_orders
+        description: "Total number of orders made by the customer"
         tests:
           - not_null
       - name: total_spent
         description: "Total amount spent by the customer"
         tests:
           - not_null
-      - name: last_purchase_date
-        description: "Date of the most recent purchase made by the customer"
+      - name: last_order_date
+        description: "Date of the most recent order made by the customer"
         tests:
           - not_null
