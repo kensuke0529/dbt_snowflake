@@ -16,7 +16,7 @@ enriched as (
 
         count(distinct event_id) as total_events,
         
-        case when event_type = 'order_fulfilled' then 1 else 0 end as _is_order_fulfilled,
+        max(case when event_type = 'order_fulfilled' then 1 else 0 end) as _is_order_fulfilled,
 
         any_value(customer_id) as customer_id,
         any_value(customer_country) as customer_country,
