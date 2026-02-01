@@ -2,64 +2,43 @@ version: 2
 
 models:
   - name: raw_events_from_s3
-    description: |
-      Raw event data loaded from S3. This is the landing zone for all events
-      before transformation. Each row represents one event from the source files.
-    columns:
-      - name: event_data
-        description: The complete JSON event object as a VARIANT
-      - name: source_file
-        description: S3 file path this event came from (for tracking and debugging)
-      - name: file_row_number
-        description: Row number within the source file
-      - name: loaded_at
-        description: Timestamp when this row was loaded into Snowflake
+
 
   - name: stg_events
-    description: |
-      Staged and parsed event data. This model transforms the raw JSON into 
-      structured columns for downstream analytics.
+    config:
+      contract:
+        enforced: true
+
     columns:
-      - name: event_id
-        description: Unique identifier for each event
-        tests:
-          - unique
-          - not_null
-      - name: session_id
-        description: Session identifier grouping related events
       - name: event_at
-        description: Timestamp when the event occurred
+        data_type: timestamp_ntz
         tests:
           - not_null
-      - name: event_type
-        description: Type of event (e.g., page_view, add_to_cart, purchase)
-      - name: customer_id
-        description: Unique customer identifier
-      - name: customer_email
-        description: Customer email address
-      - name: customer_first_name
-        description: Customer first name
-      - name: customer_last_name
-        description: Customer last name
-      - name: customer_country
-        description: Customer country
+          - event_at_is_valid:
+              column_name: event_at
+              description: "{{doc('event_at_is_valid')}}"
+              config:
+                severity: warn
+        constraints: 
+          - type: not_null  
+
+      - name: event_id
+        data_type: string
+        constraints: 
+          - type: not_null
+          - type: unique
+
+      - name: session_id
+        data_type: string
+        constraints: 
+          - type: not_null
+
+      - name: customer_id 
+        data_type: string
+        constraints: 
+          -  type: not_null
+
       - name: order_id
-        description: Order identifier (for purchase events)
-      - name: order_status
-        description: Current order status
-      - name: currency
-        description: Currency code for monetary amounts
-      - name: total_amount
-        description: Total order amount
-      - name: tax_amount
-        description: Tax amount
-      - name: shipping_amount
-        description: Shipping cost
-      - name: acquisition_channel
-        description: Marketing channel (e.g., organic, paid, email)
-      - name: device_type
-        description: Device used (e.g., mobile, desktop, tablet)
-      - name: order_items_array
-        description: Array of order line items (VARIANT)
-      - name: dbt_updated_at
-        description: Timestamp when this row was last updated by dbt
+        data_type: string
+        constraints: 
+          - type: not_null

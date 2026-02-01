@@ -1,8 +1,0 @@
-version: 2
-
-sources:
-  - name: s3_bucket # This is the 'source_name'
-    database: DBT_DEMO_SNOWFLAKE
-    schema: DBT
-    tables:
-      - name: RAW_EVENTS 

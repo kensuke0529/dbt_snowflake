@@ -1,0 +1,105 @@
+name: dbt Slim CI
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch: # Allow manual trigger for testing
+
+jobs:
+  slim-ci:
+    runs-on: ubuntu-latest
+    
+    env:
+      DBT_PROFILES_DIR: ./ecommerce_pipeline
+      DBT_PROJECT_DIR: ./ecommerce_pipeline
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dbt
+        run: |
+          pip install dbt-snowflake==1.11.1
+      
+      - name: Create profiles.yml
+        run: |
+          mkdir -p $DBT_PROFILES_DIR
+          cat > $DBT_PROFILES_DIR/profiles.yml << EOF
+          ecommerce_pipeline:
+            target: ci
+            outputs:
+              ci:
+                type: snowflake
+                account: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+                user: ${{ secrets.SNOWFLAKE_USER }}
+                password: ${{ secrets.SNOWFLAKE_PASSWORD }}
+                role: ${{ secrets.SNOWFLAKE_ROLE }}
+                database: ${{ secrets.SNOWFLAKE_DATABASE }}
+                warehouse: ${{ secrets.SNOWFLAKE_WAREHOUSE }}
+                schema: DBT_CI
+                threads: 4
+          EOF
+      
+      - name: Checkout main branch for manifest
+        uses: actions/checkout@v3
+        with:
+          ref: main
+          path: main-branch
+      
+      - name: Get production manifest
+        run: |
+          mkdir -p ./state
+          if [ -f "main-branch/ecommerce_pipeline/state/manifest.json" ]; then
+            cp main-branch/ecommerce_pipeline/state/manifest.json ./state/
+            echo "✅ Using production manifest from main branch"
+          else
+            echo "⚠️ No production manifest found, will run all models"
+          fi
+      
+      - name: Install dbt packages
+        run: |
+          cd $DBT_PROJECT_DIR
+          dbt deps
+      
+      - name: Run dbt on modified models only
+        run: |
+          cd $DBT_PROJECT_DIR
+          if [ -f "../state/manifest.json" ]; then
+            echo "Running slim CI - only modified models and downstream dependencies"
+            dbt run --select state:modified+ --defer --state ../state
+          else
+            echo "Running full dbt - no state available"
+            dbt run
+          fi
+      
+      - name: Test modified models only
+        run: |
+          cd $DBT_PROJECT_DIR
+          if [ -f "../state/manifest.json" ]; then
+            echo "Testing slim CI - only modified models"
+            dbt test --select state:modified+ --defer --state ../state
+          else
+            echo "Testing all models - no state available"
+            dbt test
+          fi
+      
+      - name: Generate documentation
+        if: success()
+        run: |
+          cd $DBT_PROJECT_DIR
+          dbt docs generate
+      
+      - name: Upload run artifacts
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: dbt-run-artifacts
+          path: |
+            ecommerce_pipeline/target/run_results.json
+            ecommerce_pipeline/target/manifest.json
+            ecommerce_pipeline/logs/

@@ -22,7 +22,8 @@ with s3_files as (
     from @DBT_DEMO_SNOWFLAKE.DBT.s3_raw_events_stage
     
     {% if is_incremental() %}
-    -- Only load files we haven't seen before
+    
+    -- Only load new files 
     where metadata$filename not in (
         select distinct source_file 
         from {{ this }}
