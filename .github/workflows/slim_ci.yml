@@ -9,16 +9,12 @@ jobs:
   slim-ci:
     runs-on: ubuntu-latest
     
-    env:
-      DBT_PROFILES_DIR: ./ecommerce_pipeline
-      DBT_PROJECT_DIR: ./ecommerce_pipeline
-    
     steps:
       - name: Checkout PR code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
       
@@ -28,9 +24,9 @@ jobs:
       
       - name: Create profiles.yml
         run: |
-          mkdir -p $DBT_PROFILES_DIR
-          cat > $DBT_PROFILES_DIR/profiles.yml << EOF
-          ecommerce_pipeline:
+          mkdir -p ecommerce_pipeline
+          cat > ecommerce_pipeline/profiles.yml << EOF
+          dbt_snowflake:
             target: ci
             outputs:
               ci:
@@ -61,40 +57,38 @@ jobs:
       
       - name: Install dbt packages
         run: |
-          cd $DBT_PROJECT_DIR
-          dbt deps
+          dbt deps --project-dir ecommerce_pipeline --profiles-dir ecommerce_pipeline
       
       - name: Run dbt on modified models only
         run: |
-          cd $DBT_PROJECT_DIR
-          if [ -f "../state/manifest.json" ]; then
+          if [ -f "./state/manifest.json" ]; then
             echo "🎯 Running Slim CI - only modified models + downstream"
-            dbt run --select state:modified+ --defer --state ../state || dbt run
+            dbt run --select state:modified+ --defer --state ./state --project-dir ecommerce_pipeline --profiles-dir ecommerce_pipeline || \
+            dbt run --project-dir ecommerce_pipeline --profiles-dir ecommerce_pipeline
           else
             echo "⚙️ Running all models - no state available"
-            dbt run
+            dbt run --project-dir ecommerce_pipeline --profiles-dir ecommerce_pipeline
           fi
       
       - name: Test modified models only
         run: |
-          cd $DBT_PROJECT_DIR
-          if [ -f "../state/manifest.json" ]; then
+          if [ -f "./state/manifest.json" ]; then
             echo "🧪 Testing modified models only"
-            dbt test --select state:modified+ --defer --state ../state || dbt test
+            dbt test --select state:modified+ --defer --state ./state --project-dir ecommerce_pipeline --profiles-dir ecommerce_pipeline || \
+            dbt test --project-dir ecommerce_pipeline --profiles-dir ecommerce_pipeline
           else
             echo "🧪 Testing all models - no state available"
-            dbt test
+            dbt test --project-dir ecommerce_pipeline --profiles-dir ecommerce_pipeline
           fi
       
       - name: Generate documentation
         if: success()
         run: |
-          cd $DBT_PROJECT_DIR
-          dbt docs generate
+          dbt docs generate --project-dir ecommerce_pipeline --profiles-dir ecommerce_pipeline
       
       - name: Upload run artifacts
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: dbt-run-artifacts
           path: |
