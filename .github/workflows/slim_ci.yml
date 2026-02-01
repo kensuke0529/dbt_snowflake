@@ -3,7 +3,7 @@ name: dbt Slim CI
 on:
   pull_request:
     branches: [main]
-  workflow_dispatch: # Allow manual trigger for testing
+  workflow_dispatch:  
 
 jobs:
   slim-ci:
@@ -14,7 +14,7 @@ jobs:
       DBT_PROJECT_DIR: ./ecommerce_pipeline
     
     steps:
-      - name: Checkout code
+      - name: Checkout PR code
         uses: actions/checkout@v3
       
       - name: Setup Python
@@ -22,7 +22,7 @@ jobs:
         with:
           python-version: '3.11'
       
-      - name: Install dbt
+      - name: Install dbt-snowflake
         run: |
           pip install dbt-snowflake==1.11.1
       
@@ -45,20 +45,18 @@ jobs:
                 threads: 4
           EOF
       
-      - name: Checkout main branch for manifest
-        uses: actions/checkout@v3
-        with:
-          ref: main
-          path: main-branch
-      
-      - name: Get production manifest
+      - name: Get production manifest from main branch
         run: |
           mkdir -p ./state
-          if [ -f "main-branch/ecommerce_pipeline/state/manifest.json" ]; then
-            cp main-branch/ecommerce_pipeline/state/manifest.json ./state/
-            echo "✅ Using production manifest from main branch"
+          echo "📥 Fetching production manifest from main branch..."
+          git fetch origin main
+          git show origin/main:ecommerce_pipeline/state/manifest.json > ./state/manifest.json 2>/dev/null || echo "⚠️ No manifest found"
+          
+          if [ -f "./state/manifest.json" ]; then
+            echo "✅ Production manifest loaded successfully"
+            ls -lh ./state/manifest.json
           else
-            echo "⚠️ No production manifest found, will run all models"
+            echo "⚠️ No production manifest - will run all models"
           fi
       
       - name: Install dbt packages
@@ -70,10 +68,10 @@ jobs:
         run: |
           cd $DBT_PROJECT_DIR
           if [ -f "../state/manifest.json" ]; then
-            echo "Running slim CI - only modified models and downstream dependencies"
-            dbt run --select state:modified+ --defer --state ../state
+            echo "🎯 Running Slim CI - only modified models + downstream"
+            dbt run --select state:modified+ --defer --state ../state || dbt run
           else
-            echo "Running full dbt - no state available"
+            echo "⚙️ Running all models - no state available"
             dbt run
           fi
       
@@ -81,10 +79,10 @@ jobs:
         run: |
           cd $DBT_PROJECT_DIR
           if [ -f "../state/manifest.json" ]; then
-            echo "Testing slim CI - only modified models"
-            dbt test --select state:modified+ --defer --state ../state
+            echo "🧪 Testing modified models only"
+            dbt test --select state:modified+ --defer --state ../state || dbt test
           else
-            echo "Testing all models - no state available"
+            echo "🧪 Testing all models - no state available"
             dbt test
           fi
       
