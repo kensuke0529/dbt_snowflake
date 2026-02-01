@@ -48,15 +48,15 @@ jobs:
       - name: Get production manifest from main branch
         run: |
           mkdir -p ./state
-          echo "📥 Fetching production manifest from main branch..."
+          echo "Fetching production manifest from main branch..."
           git fetch origin main
-          git show origin/main:ecommerce_pipeline/state/manifest.json > ./state/manifest.json 2>/dev/null || echo "⚠️ No manifest found"
+          git show origin/main:ecommerce_pipeline/state/manifest.json > ./state/manifest.json 2>/dev/null || echo "No manifest found"
           
           if [ -f "./state/manifest.json" ]; then
-            echo "✅ Production manifest loaded successfully"
+            echo "Production manifest loaded successfully"
             ls -lh ./state/manifest.json
           else
-            echo "⚠️ No production manifest - will run all models"
+            echo "No production manifest - will run all models"
           fi
       
       - name: Install dbt packages
