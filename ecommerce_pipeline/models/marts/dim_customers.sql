@@ -1,4 +1,5 @@
 {{ config(materialized='table') }}
+-- Testing Slim CI: This change should trigger workflow to run dim_customers only
 
 with customer_history as (
     select * from {{ ref('int_customer_purchase_history') }}
